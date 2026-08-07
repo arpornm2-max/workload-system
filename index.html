@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบภาระงาน สำหรับครู (Teacher Workload System)</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link href="https://unpkg.com/lucide-static@0.321.0/font/lucide.css" rel="stylesheet">
+    <!-- Signature Pad -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/style.css?v=3">
+</head>
+<body>
+    <div class="background-mesh"></div>
+    
+    <div id="app" class="app-container">
+        <!-- Views will be injected here by app.js -->
+        <div class="loading-screen">
+            <div class="spinner"></div>
+            <p>กำลังโหลดระบบ...</p>
+        </div>
+    </div>
+    
+    <!-- Footer / Credit -->
+    <footer style="text-align: center; padding: 1rem; color: var(--text-muted); font-size: 0.9rem; margin-top: auto;">
+        <p>&copy; 2026 พัฒนาระบบโดย - นางสาวอาภรณ์ ม่านทอง | กลุ่มบริหารงานบุคคล โรงเรียนวังน้ำเย็นวิทยาคม</p>
+    </footer>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Scripts -->
+    <script src="js/db.js?v=16"></script>
+    <script src="js/auth.js?v=16"></script>
+    <script src="js/utils.js?v=16"></script>
+    <script src="js/views/login.js?v=16"></script>
+    <script src="js/views/teacher.js?v=16"></script>
+    <script src="js/views/certifier.js?v=16"></script>
+    <script src="js/views/admin.js?v=16"></script>
+    <script src="js/app.js?v=16"></script>
+</body>
+</html>
