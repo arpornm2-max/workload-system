@@ -23,6 +23,7 @@ const DB = {
                 const users = [];
                 snapshot.forEach(doc => users.push(doc.data()));
                 localStorage.setItem('users', JSON.stringify(users));
+                window.dispatchEvent(new Event('db-updated'));
             });
 
             // Listen to workloads
@@ -154,6 +155,30 @@ const DB = {
 
     getAllWorkloadsForAdmin() {
         return JSON.parse(localStorage.getItem('workloads') || '[]');
+    },
+
+    async saveUser(userData) {
+        try {
+            // Ensure ID is set (either from existing or same as username for new users)
+            if (!userData.id) {
+                userData.id = userData.username;
+            }
+            await db.collection('users').doc(userData.id).set(userData);
+            return true;
+        } catch (e) {
+            console.error("Error saving user: ", e);
+            return false;
+        }
+    },
+
+    async deleteUser(userId) {
+        try {
+            await db.collection('users').doc(userId).delete();
+            return true;
+        } catch (e) {
+            console.error("Error deleting user: ", e);
+            return false;
+        }
     },
 
     async approveWorkload(workloadId) {
