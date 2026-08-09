@@ -240,6 +240,7 @@ const TeacherView = {
             const user = Auth.getCurrentUser();
 
             const payload = {
+                id: 'wl_' + Date.now(),
                 teacherId: user.id,
                 teacherInfo: {
                     name: user.name,
@@ -247,6 +248,8 @@ const TeacherView = {
                     position: user.position,
                     department: user.department
                 },
+                status: 'pending',
+                createdAt: new Date().toISOString(),
                 totalHours: totalHours,
                 reporterSignature: signatureBase64,
                 items: items
