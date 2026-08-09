@@ -10,7 +10,14 @@ const TeacherView = {
         if (workloads.length === 0) {
             workloadsListHtml = '<div style="text-align:center; padding: 2rem; color: var(--text-muted);">ยังไม่มีรายการภาระงาน</div>';
         } else {
-            workloadsListHtml = workloads.map(w => `
+            // Sort by newest first
+            workloads.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            workloadsListHtml = workloads.map(w => {
+                const canDelete = w.status === 'pending';
+                const deleteBtnHtml = canDelete 
+                    ? `<button class="btn btn-danger btn-sm delete-workload-btn" data-id="${w.id}" style="padding: 0.25rem 0.5rem; margin-top: 0.5rem; width: 100%;"><i data-lucide="trash-2" style="width:14px; height:14px;"></i> ลบรายการนี้</button>` 
+                    : '';
+                return `
                 <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 1rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <strong>รายการวันที่ ${Utils.formatDate(w.createdAt)}</strong>
@@ -20,8 +27,10 @@ const TeacherView = {
                     <div style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted);">
                         มีภาระงาน ${w.items.length} รายการ
                     </div>
+                    ${deleteBtnHtml}
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         const certifierOptions = certifiers.map(c => 
@@ -277,6 +286,36 @@ const TeacherView = {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
+        });
+
+        // Delete Workload Handlers
+        document.querySelectorAll('.delete-workload-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const button = e.target.closest('.delete-workload-btn');
+                const id = button.dataset.id;
+                
+                if (confirm('คุณต้องการลบรายงานนี้อย่างถาวรใช่หรือไม่?')) {
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<div class="spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>';
+                    button.disabled = true;
+
+                    try {
+                        const success = await DB.deleteWorkload(id);
+                        if (success) {
+                            Utils.showToast('ลบรายงานสำเร็จ', 'success');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            Utils.showToast('เกิดข้อผิดพลาดในการลบ', 'error');
+                            button.innerHTML = originalText;
+                            button.disabled = false;
+                        }
+                    } catch (error) {
+                        Utils.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
+                }
+            });
         });
     }
 };

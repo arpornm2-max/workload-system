@@ -192,5 +192,15 @@ const DB = {
             console.error(e);
             return false;
         }
+    },
+
+    async deleteWorkload(workloadId) {
+        try {
+            await db.collection('workloads').doc(workloadId).delete();
+            return true;
+        } catch (e) {
+            console.error("Error deleting workload: ", e);
+            return false;
+        }
     }
 };
