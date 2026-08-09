@@ -66,6 +66,7 @@ const Utils = {
             'pending': { class: 'badge-pending', text: 'รออนุมัติ' },
             'partial_certified': { class: 'badge-pending', text: 'รอรับรองครบ' },
             'certified': { class: 'badge-certified', text: 'รอ Admin อนุมัติ' },
+            'pending_admin': { class: 'badge-certified', text: 'รอ Admin อนุมัติ' },
             'approved': { class: 'badge-approved', text: 'อนุมัติแล้ว' }
         };
         const info = map[status] || map['pending'];

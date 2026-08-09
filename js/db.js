@@ -140,7 +140,7 @@ const DB = {
                 // Check if all items are certified
                 const allCertified = wl.items.every(i => i.isCertified);
                 if (allCertified) {
-                    wl.status = 'pending_admin';
+                    wl.status = 'certified';
                 }
                 
                 await docRef.update(wl);

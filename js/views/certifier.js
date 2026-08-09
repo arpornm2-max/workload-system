@@ -36,9 +36,10 @@ const CertifierView = {
         let approvedCount = 0;
 
         workloads.forEach(w => {
-            if (w.status === 'pending') pendingCount++;
-            else if (w.status === 'certified') certifiedCount++;
-            else if (w.status === 'approved') approvedCount++;
+            const st = w.status || 'pending';
+            if (st === 'pending') pendingCount++;
+            else if (st === 'certified' || st === 'pending_admin') certifiedCount++;
+            else if (st === 'approved') approvedCount++;
         });
         
         let dashboardHtml = `
@@ -166,9 +167,10 @@ const CertifierView = {
         const workloads = DB.getAllWorkloadsForAdmin();
         let pending = 0, certified = 0, approved = 0;
         workloads.forEach(w => {
-            if (w.status === 'pending') pending++;
-            else if (w.status === 'certified') certified++;
-            else if (w.status === 'approved') approved++;
+            const st = w.status || 'pending';
+            if (st === 'pending') pending++;
+            else if (st === 'certified' || st === 'pending_admin') certified++;
+            else if (st === 'approved') approved++;
         });
 
         const ctx = document.getElementById('certifierStatusChart');

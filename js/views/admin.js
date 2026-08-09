@@ -11,9 +11,10 @@ const AdminView = {
         let approvedCount = 0;
 
         workloads.forEach(w => {
-            if (w.status === 'pending') pendingCount++;
-            else if (w.status === 'certified') certifiedCount++;
-            else if (w.status === 'approved') approvedCount++;
+            const st = w.status || 'pending';
+            if (st === 'pending') pendingCount++;
+            else if (st === 'certified' || st === 'pending_admin') certifiedCount++;
+            else if (st === 'approved') approvedCount++;
         });
 
         // Dashboard HTML
@@ -222,9 +223,10 @@ const AdminView = {
     renderWorkloadRows(workloads) {
         if (workloads.length === 0) return '<tr><td colspan="6" style="text-align:center; padding: 2rem;">ไม่มีข้อมูลระบบ</td></tr>';
         
-        workloads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        workloads.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         return workloads.map(w => {
-            const actionBtn = w.status === 'certified' 
+            const st = w.status || 'pending';
+            const actionBtn = (st === 'certified' || st === 'pending_admin') 
                 ? `<button class="btn btn-secondary btn-sm approve-wl-btn" data-id="${w.id}" style="color: var(--secondary); border-color: var(--secondary);"><i data-lucide="check-circle" style="width: 16px;"></i> อนุมัติ</button>`
                 : `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.5;">-</button>`;
                 
@@ -310,9 +312,10 @@ const AdminView = {
         // Initialize Chart
         let pending = 0, certified = 0, approved = 0;
         workloads.forEach(w => {
-            if (w.status === 'pending') pending++;
-            else if (w.status === 'certified') certified++;
-            else if (w.status === 'approved') approved++;
+            const st = w.status || 'pending';
+            if (st === 'pending') pending++;
+            else if (st === 'certified' || st === 'pending_admin') certified++;
+            else if (st === 'approved') approved++;
         });
 
         const ctx = document.getElementById('adminStatusChart');
