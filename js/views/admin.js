@@ -97,7 +97,7 @@ const AdminView = {
         `;
 
         // Users Management HTML
-        let usersHtml = `
+        let usersHtml = user.username !== 's001' ? `
             <div id="tab-users" class="tab-content" style="display: none;">
                 <div class="glass-panel" style="padding: 0; overflow: hidden;">
                     <div style="padding: 1.5rem; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
@@ -124,7 +124,7 @@ const AdminView = {
                     </div>
                 </div>
             </div>
-        `;
+        ` : '';
 
         return `
             <div class="app-header glass-panel" style="margin-bottom: 2rem; padding: 0 1.5rem;">
@@ -147,9 +147,11 @@ const AdminView = {
                 <button class="tab-btn active" data-target="tab-dashboard" style="padding: 0.75rem 1.5rem; border: none; background: transparent; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 600; cursor: pointer; transition: 0.3s;">
                     <i data-lucide="layout-dashboard"></i> แดชบอร์ด
                 </button>
+                ${user.username !== 's001' ? `
                 <button class="tab-btn" data-target="tab-users" style="padding: 0.75rem 1.5rem; border: none; background: transparent; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 600; cursor: pointer; transition: 0.3s;">
                     <i data-lucide="users"></i> จัดการผู้ใช้
                 </button>
+                ` : ''}
             </div>
 
             <div id="admin-container">
@@ -228,7 +230,9 @@ const AdminView = {
             const st = w.status || 'pending';
             const actionBtn = (st === 'certified' || st === 'pending_admin') 
                 ? `<button class="btn btn-secondary btn-sm approve-wl-btn" data-id="${w.id}" style="color: var(--secondary); border-color: var(--secondary);"><i data-lucide="check-circle" style="width: 16px;"></i> อนุมัติ</button>`
-                : `<button class="btn btn-secondary btn-sm" disabled style="opacity: 0.5;">-</button>`;
+                : '';
+                
+            const deleteBtn = `<button class="btn btn-danger btn-sm delete-wl-btn-admin" data-id="${w.id}" style="padding: 0.25rem 0.5rem;"><i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> ลบ</button>`;
                 
             return `
                 <tr>
@@ -238,11 +242,12 @@ const AdminView = {
                     <td>${w.totalHours}</td>
                     <td>${Utils.getStatusBadge(w.status)}</td>
                     <td>
-                        <div style="display: flex; gap: 0.5rem;">
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
                             <button class="btn btn-secondary btn-sm view-details-btn" data-id="${w.id}">
                                 <i data-lucide="eye" style="width: 16px;"></i> ดูรายละเอียด
                             </button>
                             ${actionBtn}
+                            ${deleteBtn}
                         </div>
                     </td>
                 </tr>
@@ -364,6 +369,36 @@ const AdminView = {
                             setTimeout(() => window.location.reload(), 1500);
                         } else {
                             Utils.showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+                            button.innerHTML = originalText;
+                            button.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        Utils.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.delete-wl-btn-admin').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const button = e.target.closest('.delete-wl-btn-admin');
+                const id = button.dataset.id;
+                
+                if (confirm('คุณต้องการลบรายการภาระงานนี้อย่างถาวรใช่หรือไม่?')) {
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>';
+                    button.disabled = true;
+
+                    try {
+                        const success = await DB.deleteWorkload(id);
+                        if (success) {
+                            Utils.showToast('ลบรายการสำเร็จ', 'success');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            Utils.showToast('เกิดข้อผิดพลาดในการลบ', 'error');
                             button.innerHTML = originalText;
                             button.disabled = false;
                         }
