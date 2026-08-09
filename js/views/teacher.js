@@ -24,8 +24,9 @@ const TeacherView = {
                         ${Utils.getStatusBadge(w.status)}
                     </div>
                     <div>รวมเวลา: ${w.totalHours} ชั่วโมง</div>
-                    <div style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted);">
-                        มีภาระงาน ${w.items.length} รายการ
+                    <div style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+                        <span>มีภาระงาน ${w.items.length} รายการ</span>
+                        <button class="btn btn-secondary btn-sm view-details-btn-teacher" data-id="${w.id}" style="padding: 0.25rem 0.5rem;"><i data-lucide="eye" style="width:14px; height:14px;"></i> ดูรายละเอียด</button>
                     </div>
                     ${deleteBtnHtml}
                 </div>
@@ -119,6 +120,17 @@ const TeacherView = {
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Modal for Teacher Workload details -->
+            <div id="teacher-details-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center;">
+                <div class="glass-panel" style="width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; position: relative;">
+                    <button id="close-teacher-modal" class="btn btn-secondary btn-icon" style="position: absolute; top: 1rem; right: 1rem; z-index: 10;">
+                        <i data-lucide="x"></i>
+                    </button>
+                    <h2 style="margin-bottom: 1.5rem;">รายละเอียดภาระงาน</h2>
+                    <div id="teacher-modal-content"></div>
                 </div>
             </div>
         `;
@@ -315,6 +327,63 @@ const TeacherView = {
                         button.disabled = false;
                     }
                 }
+            });
+        });
+
+        // Details Modal Handlers
+        const detailsModal = document.getElementById('teacher-details-modal');
+        document.getElementById('close-teacher-modal')?.addEventListener('click', () => {
+            detailsModal.style.display = 'none';
+        });
+
+        const workloadsList = DB.getWorkloadsByTeacher(Auth.getCurrentUser().id);
+        document.querySelectorAll('.view-details-btn-teacher').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.closest('.view-details-btn-teacher').dataset.id;
+                const wl = workloadsList.find(w => w.id === id);
+                if (!wl) return;
+
+                let itemsHtml = wl.items.map(i => `
+                    <div style="border: 1px solid #E5E7EB; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <div class="grid-2">
+                            <div><strong>ภาระงาน:</strong> ${i.description}</div>
+                            <div><strong>กลุ่มงาน:</strong> ${i.group}</div>
+                            <div><strong>ชั่วโมง/สัปดาห์:</strong> ${i.hours}</div>
+                            <div><strong>สถานะรับรอง:</strong> ${i.isCertified ? '<span style="color:var(--secondary)">รับรองแล้ว</span>' : '<span style="color:var(--danger)">ยังไม่รับรอง</span>'}</div>
+                        </div>
+                        ${i.isCertified && i.certifierSignature ? `
+                            <div style="margin-top: 1rem; border-top: 1px dashed #E5E7EB; padding-top: 1rem;">
+                                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">ลายเซ็นผู้รับรอง:</div>
+                                <img src="${i.certifierSignature}" style="max-height: 80px; border: 1px solid #eee; background: white;" />
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+
+                const contentHtml = `
+                    <div class="grid-2" style="margin-bottom: 2rem; background: #F9FAFB; padding: 1.5rem; border-radius: 8px;">
+                        <div><strong>ผู้รายงาน:</strong> ${wl.teacherInfo.name} ${wl.teacherInfo.surname}</div>
+                        <div><strong>ตำแหน่ง:</strong> ${wl.teacherInfo.position}</div>
+                        <div><strong>ชั่วโมงรวมทั้งหมด:</strong> ${wl.totalHours} ชม./สัปดาห์</div>
+                        <div><strong>สถานะ:</strong> ${Utils.getStatusBadge(wl.status)}</div>
+                    </div>
+                    
+                    <h3 style="margin-bottom: 1rem;">รายการภาระงาน</h3>
+                    ${itemsHtml}
+
+                    <div style="margin-top: 2rem; text-align: right; border-top: 1px solid #E5E7EB; padding-top: 1.5rem;">
+                        <button class="btn btn-secondary close-teacher-modal-btn">ปิดหน้าต่าง</button>
+                    </div>
+                `;
+
+                document.getElementById('teacher-modal-content').innerHTML = contentHtml;
+                detailsModal.style.display = 'flex';
+                
+                document.querySelectorAll('.close-teacher-modal-btn').forEach(b => {
+                    b.addEventListener('click', () => {
+                        detailsModal.style.display = 'none';
+                    });
+                });
             });
         });
     }
