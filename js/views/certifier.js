@@ -12,17 +12,20 @@ const CertifierView = {
         } else {
             pendingHtml = pendingItems.map((pi, idx) => `
                 <div class="glass-panel" style="padding: 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">
-                            ผู้รายงาน: ${pi.teacher.name} ${pi.teacher.surname}
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <input type="checkbox" class="cert-checkbox" data-wlid="${pi.workloadId}" data-itemid="${pi.item.id}" style="width: 20px; height: 20px; cursor: pointer;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.5rem;">
+                                ผู้รายงาน: ${pi.teacher.name} ${pi.teacher.surname}
+                            </div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.25rem;">ภาระงาน: ${pi.item.description}</div>
+                            <div style="color: var(--text-muted); margin-bottom: 0.5rem;">วันที่ส่ง: ${Utils.formatDate(pi.createdAt)}</div>
+                            <div style="color: var(--primary); font-weight: 500;">จำนวนชั่วโมง: ${pi.item.hours} ชม./สัปดาห์</div>
                         </div>
-                        <div style="color: var(--text-muted); margin-bottom: 0.25rem;">ภาระงาน: ${pi.item.description}</div>
-                        <div style="color: var(--text-muted); margin-bottom: 0.5rem;">วันที่ส่ง: ${Utils.formatDate(pi.createdAt)}</div>
-                        <div style="color: var(--primary); font-weight: 500;">จำนวนชั่วโมง: ${pi.item.hours} ชม./สัปดาห์</div>
                     </div>
                     <div>
                         <button class="btn btn-primary approve-btn" data-idx="${idx}">
-                            ตรวจสอบและรับรอง
+                            <i data-lucide="edit"></i> ตรวจสอบ
                         </button>
                     </div>
                 </div>
@@ -107,14 +110,31 @@ const CertifierView = {
                         </div>
                     </div>
                 </div>
-                <button id="logout-btn" class="btn btn-danger">
-                    <i data-lucide="log-out"></i> ออกจากระบบ
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" onclick="Utils.initSignatureSettings()">
+                        <i data-lucide="settings"></i> สร้างลายเซ็น
+                    </button>
+                    <button id="logout-btn" class="btn btn-danger">
+                        <i data-lucide="log-out"></i> ออกจากระบบ
+                    </button>
+                </div>
             </div>
 
             <div id="dashboard-view">
                 ${dashboardHtml}
-                <h2 style="margin-bottom: 1.5rem;">รายการรอรับรอง</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2 style="margin: 0;">รายการรอรับรอง</h2>
+                </div>
+                ${pendingItems.length > 0 ? `
+                <div class="glass-panel" style="padding: 1rem 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.8);">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 600;">
+                        <input type="checkbox" id="cert-select-all" style="width: 18px; height: 18px;"> เลือกทั้งหมด
+                    </label>
+                    <button id="bulk-certify-btn" class="btn btn-primary" disabled>
+                        <i data-lucide="check-square"></i> รับรองรายการที่เลือก (<span id="cert-selected-count">0</span>)
+                    </button>
+                </div>
+                ` : ''}
                 ${pendingHtml}
             </div>
 
@@ -196,6 +216,63 @@ const CertifierView = {
                     maintainAspectRatio: false,
                     plugins: {
                         legend: { position: 'bottom', labels: { font: { family: 'Sarabun' } } }
+                    }
+                }
+            });
+        }
+
+        // Bulk Actions
+        const selectAllCb = document.getElementById('cert-select-all');
+        const itemCbs = document.querySelectorAll('.cert-checkbox');
+        const bulkBtn = document.getElementById('bulk-certify-btn');
+        const selectedCountSpan = document.getElementById('cert-selected-count');
+
+        const updateBulkBtnState = () => {
+            const checkedCount = document.querySelectorAll('.cert-checkbox:checked').length;
+            if (selectedCountSpan) selectedCountSpan.textContent = checkedCount;
+            if (bulkBtn) bulkBtn.disabled = checkedCount === 0;
+            if (selectAllCb) selectAllCb.checked = (checkedCount === itemCbs.length && itemCbs.length > 0);
+        };
+
+        if (selectAllCb) {
+            selectAllCb.addEventListener('change', (e) => {
+                itemCbs.forEach(cb => cb.checked = e.target.checked);
+                updateBulkBtnState();
+            });
+        }
+
+        itemCbs.forEach(cb => cb.addEventListener('change', updateBulkBtnState));
+
+        if (bulkBtn) {
+            bulkBtn.addEventListener('click', async () => {
+                const checkedCbs = document.querySelectorAll('.cert-checkbox:checked');
+                if (checkedCbs.length === 0) return;
+
+                const currentUser = Auth.getCurrentUser() || {};
+                if (!currentUser.savedSignature) {
+                    Utils.showToast('กรุณาตั้งค่าลายเซ็นส่วนตัวก่อนทำการรับรองรายการ', 'error');
+                    window.openSignatureSettings();
+                    return;
+                }
+
+                if (confirm(`คุณต้องการรับรองรายการทั้ง ${checkedCbs.length} รายการด้วยลายเซ็นส่วนตัวของคุณใช่หรือไม่?`)) {
+                    const originalText = bulkBtn.innerHTML;
+                    bulkBtn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>';
+                    bulkBtn.disabled = true;
+
+                    const itemsToCertify = Array.from(checkedCbs).map(cb => ({
+                        workloadId: cb.dataset.wlid,
+                        itemId: cb.dataset.itemid
+                    }));
+
+                    const success = await DB.bulkCertifyItems(itemsToCertify, currentUser.savedSignature);
+                    if (success) {
+                        Utils.showToast('รับรองรายการสำเร็จ', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        Utils.showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+                        bulkBtn.innerHTML = originalText;
+                        bulkBtn.disabled = false;
                     }
                 }
             });

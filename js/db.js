@@ -18,6 +18,27 @@ const DB = {
         try {
             await this.seedUsersIfEmpty();
             
+            // Migration: update ALL existing users' passwords to new defaults unconditionally
+            if (!localStorage.getItem('force_pwd_reset_done_v2')) {
+                const usersSnapMigrate = await db.collection('users').get();
+                const batchMigrate = db.batch();
+                let hasMigrations = false;
+                usersSnapMigrate.forEach(doc => {
+                    const user = doc.data();
+                    let updated = false;
+                    if (user.role === 'teacher' && user.password !== 'wny@1234') { user.password = 'wny@1234'; updated = true; }
+                    if (user.role === 'certifier' && user.password !== 'wny@0000') { user.password = 'wny@0000'; updated = true; }
+                    if (user.role === 'admin' && user.password !== 'arporn1234') { user.password = 'arporn1234'; updated = true; }
+                    
+                    if (updated) {
+                        batchMigrate.update(doc.ref, { password: user.password });
+                        hasMigrations = true;
+                    }
+                });
+                if (hasMigrations) await batchMigrate.commit();
+                localStorage.setItem('force_pwd_reset_done_v2', 'true');
+            }
+
             // Listen to users
             db.collection('users').onSnapshot(snapshot => {
                 const users = [];
@@ -57,10 +78,10 @@ const DB = {
         if (snap.empty) {
             console.log("Seeding mock users...");
             const mockUsers = [
-                { id: 't001', username: 't001', password: '123', name: 'สมชาย', surname: 'ใจดี', position: 'ครู คศ.1', department: 'วิทยาศาสตร์', role: 'teacher' },
-                { id: 't002', username: 't002', password: '123', name: 'สมหญิง', surname: 'รักเรียน', position: 'ครู คศ.2', department: 'คณิตศาสตร์', role: 'teacher' },
-                { id: 'c001', username: 'c001', password: '123', name: 'วิชาญ', surname: 'หัวหน้าหมวด', position: 'หัวหน้ากลุ่มสาระฯ', department: 'วิทยาศาสตร์', role: 'certifier' },
-                { id: 'admin', username: 'admin', password: '123', name: 'ผู้ดูแล', surname: 'ระบบ', position: 'ผู้อำนวยการ', department: 'บริหาร', role: 'admin' }
+                { id: 't001', username: 't001', password: 'wny@1234', name: 'สมชาย', surname: 'ใจดี', position: 'ครู คศ.1', department: 'วิทยาศาสตร์', role: 'teacher' },
+                { id: 't002', username: 't002', password: 'wny@1234', name: 'สมหญิง', surname: 'รักเรียน', position: 'ครู คศ.2', department: 'คณิตศาสตร์', role: 'teacher' },
+                { id: 'c001', username: 'c001', password: 'wny@0000', name: 'วิชาญ', surname: 'หัวหน้าหมวด', position: 'หัวหน้ากลุ่มสาระฯ', department: 'วิทยาศาสตร์', role: 'certifier' },
+                { id: 'admin', username: 'admin', password: 'arporn1234', name: 'ผู้ดูแล', surname: 'ระบบ', position: 'ผู้อำนวยการ', department: 'บริหาร', role: 'admin' }
             ];
             const batch = db.batch();
             mockUsers.forEach(u => {
@@ -200,6 +221,97 @@ const DB = {
             return true;
         } catch (e) {
             console.error("Error deleting workload: ", e);
+            return false;
+        }
+    },
+
+    async saveUserSignature(userId, signatureBase64) {
+        try {
+            await db.collection('users').doc(userId).update({
+                savedSignature: signatureBase64
+            });
+            
+            // Update local storage
+            const users = this.getUsers();
+            const idx = users.findIndex(u => u.id === userId);
+            if (idx > -1) {
+                users[idx].savedSignature = signatureBase64;
+                localStorage.setItem('users', JSON.stringify(users));
+                
+                // Update current user if it's them
+                const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+                if (currentUser && currentUser.id === userId) {
+                    currentUser.savedSignature = signatureBase64;
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                }
+            }
+            return true;
+        } catch (e) {
+            console.error("Error saving signature:", e);
+            return false;
+        }
+    },
+
+    async bulkCertifyItems(itemsToCertify, signatureBase64) {
+        try {
+            const batch = db.batch();
+            const workloadsData = {};
+
+            for (const item of itemsToCertify) {
+                if (!workloadsData[item.workloadId]) {
+                    const doc = await db.collection('workloads').doc(item.workloadId).get();
+                    if (doc.exists) workloadsData[item.workloadId] = doc.data();
+                }
+            }
+
+            for (const item of itemsToCertify) {
+                const wl = workloadsData[item.workloadId];
+                if (!wl) continue;
+                const iIndex = wl.items.findIndex(i => i.id === item.itemId);
+                if (iIndex > -1) {
+                    wl.items[iIndex].isCertified = true;
+                    wl.items[iIndex].certifierSignature = signatureBase64;
+                    wl.items[iIndex].certifiedAt = new Date().toISOString();
+                }
+            }
+
+            Object.keys(workloadsData).forEach(wlId => {
+                const wl = workloadsData[wlId];
+                wl.totalHours = wl.items.reduce((sum, i) => sum + Number(i.hours || 0), 0);
+                const allCertified = wl.items.every(i => i.isCertified);
+                if (allCertified) {
+                    wl.status = 'certified';
+                }
+                const ref = db.collection('workloads').doc(wlId);
+                batch.update(ref, {
+                    items: wl.items,
+                    totalHours: wl.totalHours,
+                    status: wl.status || 'pending'
+                });
+            });
+
+            await batch.commit();
+            return true;
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
+    },
+
+    async bulkApproveWorkloads(workloadIds) {
+        try {
+            const batch = db.batch();
+            workloadIds.forEach(id => {
+                const ref = db.collection('workloads').doc(id);
+                batch.update(ref, {
+                    status: 'approved',
+                    approvedAt: new Date().toISOString()
+                });
+            });
+            await batch.commit();
+            return true;
+        } catch (e) {
+            console.error(e);
             return false;
         }
     }

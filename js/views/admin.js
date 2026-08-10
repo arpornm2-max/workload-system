@@ -74,14 +74,20 @@ const AdminView = {
                 <div class="glass-panel" style="padding: 0; overflow: hidden;">
                     <div style="padding: 1.5rem; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
                         <h2 style="margin: 0;">รายการภาระงานทั้งหมด</h2>
+                        <button id="bulk-approve-btn" class="btn btn-primary" disabled>
+                            <i data-lucide="check-circle"></i> อนุมัติรายการที่เลือก (<span id="admin-selected-count">0</span>)
+                        </button>
                     </div>
                     <div style="overflow-x: auto;">
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th style="width: 50px; text-align: center;">
+                                        <input type="checkbox" id="admin-select-all" style="width: 16px; height: 16px; cursor: pointer;">
+                                    </th>
                                     <th>วันที่รายงาน</th>
                                     <th>ผู้รายงาน</th>
-                                    <th>กลุ่มสาระ</th>
+                                    <th>กลุ่มงาน/กลุ่มสาระการเรียนรู้</th>
                                     <th>ชั่วโมงรวม</th>
                                     <th>สถานะ</th>
                                     <th>จัดการ</th>
@@ -138,9 +144,11 @@ const AdminView = {
                         </div>
                     </div>
                 </div>
-                <button id="logout-btn" class="btn btn-danger">
-                    <i data-lucide="log-out"></i> ออกจากระบบ
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="logout-btn" class="btn btn-danger">
+                        <i data-lucide="log-out"></i> ออกจากระบบ
+                    </button>
+                </div>
             </div>
 
             <div class="tabs" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #E5E7EB;">
@@ -200,11 +208,29 @@ const AdminView = {
                         <div class="grid-2">
                             <div class="form-group">
                                 <label>ตำแหน่ง *</label>
-                                <input type="text" id="u-position" class="form-control" placeholder="เช่น ครู คศ.1" required>
+                                <input type="text" id="u-position" class="form-control" placeholder="เช่น ครู/คศ.1" list="position-options" required>
+                                <datalist id="position-options">
+                                    <option value="พนักงานราชการ"></option>
+                                    <option value="ครูผู้ช่วย"></option>
+                                    <option value="ครู/คศ.1"></option>
+                                    <option value="ครู/คศ.2"></option>
+                                    <option value="ครู/คศ.3"></option>
+                                    <option value="ครู/คศ.4"></option>
+                                </datalist>
                             </div>
                             <div class="form-group">
-                                <label>กลุ่มสาระ/แผนก *</label>
-                                <input type="text" id="u-department" class="form-control" required>
+                                <label>กลุ่มงาน/กลุ่มสาระการเรียนรู้ *</label>
+                                <input type="text" id="u-department" class="form-control" list="department-options" required>
+                                <datalist id="department-options">
+                                    <option value="ภาษาไทย"></option>
+                                    <option value="คณิตศาสตร์"></option>
+                                    <option value="วิทยาศาสตร์และเทคโนโลยี"></option>
+                                    <option value="สังคมศึกษา ศาสนาและวัฒนธรรม"></option>
+                                    <option value="สุขศึกษาและพลศึกษา"></option>
+                                    <option value="ศิลปะ"></option>
+                                    <option value="การงานอาชีพ"></option>
+                                    <option value="ภาษาต่างประเทศ"></option>
+                                </datalist>
                             </div>
                         </div>
                         <div class="form-group">
@@ -223,19 +249,25 @@ const AdminView = {
     },
 
     renderWorkloadRows(workloads) {
-        if (workloads.length === 0) return '<tr><td colspan="6" style="text-align:center; padding: 2rem;">ไม่มีข้อมูลระบบ</td></tr>';
+        if (workloads.length === 0) return '<tr><td colspan="7" style="text-align:center; padding: 2rem;">ไม่มีข้อมูลระบบ</td></tr>';
         
         workloads.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         return workloads.map(w => {
             const st = w.status || 'pending';
-            const actionBtn = (st === 'certified' || st === 'pending_admin') 
+            const canApprove = (st === 'certified' || st === 'pending_admin');
+            const actionBtn = canApprove
                 ? `<button class="btn btn-secondary btn-sm approve-wl-btn" data-id="${w.id}" style="color: var(--secondary); border-color: var(--secondary);"><i data-lucide="check-circle" style="width: 16px;"></i> อนุมัติ</button>`
                 : '';
                 
             const deleteBtn = `<button class="btn btn-danger btn-sm delete-wl-btn-admin" data-id="${w.id}" style="padding: 0.25rem 0.5rem;"><i data-lucide="trash-2" style="width: 16px; height: 16px;"></i> ลบ</button>`;
-                
+            
+            const checkboxHtml = canApprove
+                ? `<input type="checkbox" class="admin-cb" data-id="${w.id}" style="width: 16px; height: 16px; cursor: pointer;">`
+                : '';
+
             return `
                 <tr>
+                    <td style="text-align: center;">${checkboxHtml}</td>
                     <td>${Utils.formatDate(w.createdAt)}</td>
                     <td>${w.teacherInfo.name} ${w.teacherInfo.surname}</td>
                     <td>${w.teacherInfo.department}</td>
@@ -382,6 +414,60 @@ const AdminView = {
             });
         });
 
+        // Bulk Approve Action
+        const adminSelectAllCb = document.getElementById('admin-select-all');
+        const adminItemCbs = document.querySelectorAll('.admin-cb');
+        const adminBulkBtn = document.getElementById('bulk-approve-btn');
+        const adminSelectedCountSpan = document.getElementById('admin-selected-count');
+
+        const updateAdminBulkBtnState = () => {
+            const checkedCount = document.querySelectorAll('.admin-cb:checked').length;
+            if (adminSelectedCountSpan) adminSelectedCountSpan.textContent = checkedCount;
+            if (adminBulkBtn) adminBulkBtn.disabled = checkedCount === 0;
+            if (adminSelectAllCb) adminSelectAllCb.checked = (checkedCount === adminItemCbs.length && adminItemCbs.length > 0);
+        };
+
+        if (adminSelectAllCb) {
+            adminSelectAllCb.addEventListener('change', (e) => {
+                adminItemCbs.forEach(cb => cb.checked = e.target.checked);
+                updateAdminBulkBtnState();
+            });
+        }
+
+        adminItemCbs.forEach(cb => cb.addEventListener('change', updateAdminBulkBtnState));
+
+        if (adminBulkBtn) {
+            adminBulkBtn.addEventListener('click', async () => {
+                const checkedCbs = document.querySelectorAll('.admin-cb:checked');
+                if (checkedCbs.length === 0) return;
+
+                if (confirm(`คุณต้องการอนุมัติรายการภาระงานทั้ง ${checkedCbs.length} รายการใช่หรือไม่?`)) {
+                    const originalText = adminBulkBtn.innerHTML;
+                    adminBulkBtn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>';
+                    adminBulkBtn.disabled = true;
+
+                    const idsToApprove = Array.from(checkedCbs).map(cb => cb.dataset.id);
+
+                    try {
+                        const success = await DB.bulkApproveWorkloads(idsToApprove);
+                        if (success) {
+                            Utils.showToast('อนุมัติรายการสำเร็จ', 'success');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            Utils.showToast('เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+                            adminBulkBtn.innerHTML = originalText;
+                            adminBulkBtn.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        Utils.showToast('เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error');
+                        adminBulkBtn.innerHTML = originalText;
+                        adminBulkBtn.disabled = false;
+                    }
+                }
+            });
+        }
+
         document.querySelectorAll('.delete-wl-btn-admin').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 const button = e.target.closest('.delete-wl-btn-admin');
@@ -423,12 +509,17 @@ const AdminView = {
                 const wl = workloads.find(w => w.id === id);
                 if (!wl) return;
 
-                let itemsHtml = wl.items.map(i => `
+                const allUsers = DB.getUsers();
+                let itemsHtml = wl.items.map(i => {
+                    const certifier = allUsers.find(u => u.id === i.certifierId);
+                    const certifierName = certifier ? `${certifier.name} ${certifier.surname}` : (i.certifierId || '-');
+                    return `
                     <div style="border: 1px solid #E5E7EB; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
                         <div class="grid-2">
                             <div><strong>ภาระงาน:</strong> ${i.description}</div>
                             <div><strong>กลุ่มงาน:</strong> ${i.group}</div>
                             <div><strong>ชั่วโมง/สัปดาห์:</strong> ${i.hours}</div>
+                            <div><strong>ผู้รับรอง:</strong> ${certifierName}</div>
                             <div><strong>สถานะรับรอง:</strong> ${i.isCertified ? '<span style="color:var(--secondary)">รับรองแล้ว</span>' : '<span style="color:var(--danger)">ยังไม่รับรอง</span>'}</div>
                         </div>
                         ${i.isCertified && i.certifierSignature ? `
@@ -438,7 +529,8 @@ const AdminView = {
                             </div>
                         ` : ''}
                     </div>
-                `).join('');
+                    `;
+                }).join('');
 
                 const contentHtml = `
                     <div class="grid-2" style="margin-bottom: 2rem; background: #F9FAFB; padding: 1.5rem; border-radius: 8px;">

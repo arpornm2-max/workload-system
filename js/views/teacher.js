@@ -50,9 +50,11 @@ const TeacherView = {
                         </div>
                     </div>
                 </div>
-                <button id="logout-btn" class="btn btn-danger">
-                    <i data-lucide="log-out"></i> ออกจากระบบ
-                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="logout-btn" class="btn btn-danger">
+                        <i data-lucide="log-out"></i> ออกจากระบบ
+                    </button>
+                </div>
             </div>
 
             <div class="grid-2" style="grid-template-columns: 1fr 2fr;">
@@ -69,23 +71,46 @@ const TeacherView = {
                     <h2 style="margin-bottom: 1.5rem;">แบบรายงานภาระงาน</h2>
                     <form id="workload-form">
                         <!-- Part 1: Info -->
-                        <h4 style="margin-bottom: 1rem; color: var(--primary);">ส่วนที่ 1: ข้อมูลผู้รายงาน</h4>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h4 style="color: var(--primary); margin: 0;">ส่วนที่ 1: ข้อมูลผู้รายงาน</h4>
+                            <button type="button" id="save-profile-btn" class="btn btn-secondary btn-sm" style="padding: 0.25rem 0.75rem; font-size: 0.85rem;">
+                                บันทึกข้อมูลส่วนตัว
+                            </button>
+                        </div>
                         <div class="grid-2">
                             <div class="form-group">
                                 <label>ชื่อ</label>
-                                <input type="text" class="form-control" value="${user.name}" readonly>
+                                <input type="text" id="p-name" class="form-control" value="${user.name}" required>
                             </div>
                             <div class="form-group">
                                 <label>สกุล</label>
-                                <input type="text" class="form-control" value="${user.surname}" readonly>
+                                <input type="text" id="p-surname" class="form-control" value="${user.surname}" required>
                             </div>
                             <div class="form-group">
                                 <label>ตำแหน่ง</label>
-                                <input type="text" class="form-control" value="${user.position}" readonly>
+                                <input type="text" id="p-position" class="form-control" value="${user.position}" list="p-position-options" required>
+                                <datalist id="p-position-options">
+                                    <option value="พนักงานราชการ"></option>
+                                    <option value="ครูผู้ช่วย"></option>
+                                    <option value="ครู/คศ.1"></option>
+                                    <option value="ครู/คศ.2"></option>
+                                    <option value="ครู/คศ.3"></option>
+                                    <option value="ครู/คศ.4"></option>
+                                </datalist>
                             </div>
                             <div class="form-group">
-                                <label>กลุ่มสาระ</label>
-                                <input type="text" class="form-control" value="${user.department}" readonly>
+                                <label>กลุ่มงาน/กลุ่มสาระการเรียนรู้</label>
+                                <input type="text" id="p-department" class="form-control" value="${user.department}" list="p-department-options" required>
+                                <datalist id="p-department-options">
+                                    <option value="ภาษาไทย"></option>
+                                    <option value="คณิตศาสตร์"></option>
+                                    <option value="วิทยาศาสตร์และเทคโนโลยี"></option>
+                                    <option value="สังคมศึกษา ศาสนาและวัฒนธรรม"></option>
+                                    <option value="สุขศึกษาและพลศึกษา"></option>
+                                    <option value="ศิลปะ"></option>
+                                    <option value="การงานอาชีพ"></option>
+                                    <option value="ภาษาต่างประเทศ"></option>
+                                </datalist>
                             </div>
                         </div>
 
@@ -139,6 +164,20 @@ const TeacherView = {
     init() {
         // Logout
         document.getElementById('logout-btn')?.addEventListener('click', () => Auth.logout());
+
+        // Profile Save
+        document.getElementById('save-profile-btn')?.addEventListener('click', async () => {
+            const user = Auth.getCurrentUser();
+            user.name = document.getElementById('p-name').value;
+            user.surname = document.getElementById('p-surname').value;
+            user.position = document.getElementById('p-position').value;
+            user.department = document.getElementById('p-department').value;
+            
+            await DB.saveUser(user);
+            sessionStorage.setItem('currentUser', JSON.stringify(user));
+            
+            Utils.showToast('บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว', 'success');
+        });
 
         // Signature Pad
         this.signaturePad = Utils.initSignaturePad('teacher-signature');
@@ -264,10 +303,10 @@ const TeacherView = {
                 id: 'wl_' + Date.now(),
                 teacherId: user.id,
                 teacherInfo: {
-                    name: user.name,
-                    surname: user.surname,
-                    position: user.position,
-                    department: user.department
+                    name: document.getElementById('p-name').value,
+                    surname: document.getElementById('p-surname').value,
+                    position: document.getElementById('p-position').value,
+                    department: document.getElementById('p-department').value
                 },
                 status: 'pending',
                 createdAt: new Date().toISOString(),
@@ -343,12 +382,17 @@ const TeacherView = {
                 const wl = workloadsList.find(w => w.id === id);
                 if (!wl) return;
 
-                let itemsHtml = wl.items.map(i => `
+                const allUsers = DB.getUsers();
+                let itemsHtml = wl.items.map(i => {
+                    const certifier = allUsers.find(u => u.id === i.certifierId);
+                    const certifierName = certifier ? `${certifier.name} ${certifier.surname}` : (i.certifierId || '-');
+                    return `
                     <div style="border: 1px solid #E5E7EB; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
                         <div class="grid-2">
                             <div><strong>ภาระงาน:</strong> ${i.description}</div>
                             <div><strong>กลุ่มงาน:</strong> ${i.group}</div>
                             <div><strong>ชั่วโมง/สัปดาห์:</strong> ${i.hours}</div>
+                            <div><strong>ผู้รับรอง:</strong> ${certifierName}</div>
                             <div><strong>สถานะรับรอง:</strong> ${i.isCertified ? '<span style="color:var(--secondary)">รับรองแล้ว</span>' : '<span style="color:var(--danger)">ยังไม่รับรอง</span>'}</div>
                         </div>
                         ${i.isCertified && i.certifierSignature ? `
@@ -358,7 +402,8 @@ const TeacherView = {
                             </div>
                         ` : ''}
                     </div>
-                `).join('');
+                    `;
+                }).join('');
 
                 const contentHtml = `
                     <div class="grid-2" style="margin-bottom: 2rem; background: #F9FAFB; padding: 1.5rem; border-radius: 8px;">
