@@ -69,18 +69,7 @@ const DB = {
                 localStorage.setItem('force_teacher_update_v3', 'true');
                 console.log("Teacher bulk update v3 completed.");
             }
-                });
-                
-                // 4. Update or create the valid teachers
-                allTeachers.forEach(u => {
-                    const docRef = db.collection('users').doc(u.id);
-                    batchTeachers.set(docRef, u, { merge: true });
-                });
-                
-                await batchTeachers.commit();
-                localStorage.setItem('force_teacher_update_v2', 'true');
-                console.log("Teacher bulk update v2 completed.");
-            }
+
 
 
             // Listen to users
