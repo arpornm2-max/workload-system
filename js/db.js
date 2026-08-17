@@ -13,104 +13,7 @@ if (!firebase.apps.length) {
 }
 const db = firebase.firestore();
 
-const DB = {
-    async init() {
-        try {
-            await this.seedUsersIfEmpty();
-            
-            // Migration: update ALL existing users' passwords to new defaults unconditionally
-            if (!localStorage.getItem('force_pwd_reset_done_v2')) {
-                const usersSnapMigrate = await db.collection('users').get();
-                const batchMigrate = db.batch();
-                let hasMigrations = false;
-                usersSnapMigrate.forEach(doc => {
-                    const user = doc.data();
-                    let updated = false;
-                    if (user.role === 'teacher' && user.password !== 'wny@1234') { user.password = 'wny@1234'; updated = true; }
-                    if (user.role === 'certifier' && user.password !== 'wny@0000') { user.password = 'wny@0000'; updated = true; }
-                    if (user.role === 'admin' && user.password !== 'arporn1234') { user.password = 'arporn1234'; updated = true; }
-                    
-                    if (updated) {
-                        batchMigrate.update(doc.ref, { password: user.password });
-                        hasMigrations = true;
-                    }
-                });
-                if (hasMigrations) await batchMigrate.commit();
-                localStorage.setItem('force_pwd_reset_done_v2', 'true');
-            }
-
-            // Migration: Bulk update teachers and remove leftovers v3
-            if (!localStorage.getItem('force_teacher_update_v3')) {
-                console.log("Running teacher bulk update v3...");
-                const allTeachers = mockUsers; // Use the mockUsers array defined above
-                const batchTeachers = db.batch();
-                
-                // 1. Get all current users
-                const currentUsersSnap = await db.collection('users').get();
-                
-                // 2. Identify all valid IDs
-                const validIds = new Set(allTeachers.map(u => u.id));
-                
-                // 3. Delete any teacher that is not in the valid IDs
-                currentUsersSnap.forEach(doc => {
-                    const user = doc.data();
-                    if (user.role === 'teacher' && !validIds.has(user.id)) {
-                        batchTeachers.delete(doc.ref);
-                    }
-                });
-                
-                // 4. Update or create the valid teachers
-                allTeachers.forEach(u => {
-                    const docRef = db.collection('users').doc(u.id);
-                    batchTeachers.set(docRef, u, { merge: true });
-                });
-                
-                await batchTeachers.commit();
-                localStorage.setItem('force_teacher_update_v3', 'true');
-                console.log("Teacher bulk update v3 completed.");
-            }
-
-
-
-            // Listen to users
-            db.collection('users').onSnapshot(snapshot => {
-                const users = [];
-                snapshot.forEach(doc => users.push(doc.data()));
-                localStorage.setItem('users', JSON.stringify(users));
-                window.dispatchEvent(new Event('db-updated'));
-            });
-
-            // Listen to workloads
-            db.collection('workloads').onSnapshot(snapshot => {
-                const workloads = [];
-                snapshot.forEach(doc => workloads.push(doc.data()));
-                localStorage.setItem('workloads', JSON.stringify(workloads));
-                
-                // Dispatch event so UI can re-render if needed
-                window.dispatchEvent(new Event('db-updated'));
-            });
-            
-            // Initial fetch to ensure data is loaded before proceeding
-            const usersSnap = await db.collection('users').get();
-            const users = [];
-            usersSnap.forEach(doc => users.push(doc.data()));
-            localStorage.setItem('users', JSON.stringify(users));
-
-            const wlSnap = await db.collection('workloads').get();
-            const workloads = [];
-            wlSnap.forEach(doc => workloads.push(doc.data()));
-            localStorage.setItem('workloads', JSON.stringify(workloads));
-            
-        } catch (error) {
-            console.error("Firebase init error:", error);
-        }
-    },
-
-    async seedUsersIfEmpty() {
-        const snap = await db.collection('users').limit(1).get();
-        if (snap.empty) {
-            console.log("Seeding mock users...");
-            const mockUsers = [
+const mockUsers = [
     {
         "id": "t225",
         "username": "t225",
@@ -1442,6 +1345,104 @@ const DB = {
         "role": "admin"
     }
 ];
+
+const DB = {
+    async init() {
+        try {
+            await this.seedUsersIfEmpty();
+            
+            // Migration: update ALL existing users' passwords to new defaults unconditionally
+            if (!localStorage.getItem('force_pwd_reset_done_v2')) {
+                const usersSnapMigrate = await db.collection('users').get();
+                const batchMigrate = db.batch();
+                let hasMigrations = false;
+                usersSnapMigrate.forEach(doc => {
+                    const user = doc.data();
+                    let updated = false;
+                    if (user.role === 'teacher' && user.password !== 'wny@1234') { user.password = 'wny@1234'; updated = true; }
+                    if (user.role === 'certifier' && user.password !== 'wny@0000') { user.password = 'wny@0000'; updated = true; }
+                    if (user.role === 'admin' && user.password !== 'arporn1234') { user.password = 'arporn1234'; updated = true; }
+                    
+                    if (updated) {
+                        batchMigrate.update(doc.ref, { password: user.password });
+                        hasMigrations = true;
+                    }
+                });
+                if (hasMigrations) await batchMigrate.commit();
+                localStorage.setItem('force_pwd_reset_done_v2', 'true');
+            }
+
+            // Migration: Bulk update teachers and remove leftovers v3
+            if (!localStorage.getItem('force_teacher_update_v3')) {
+                console.log("Running teacher bulk update v3...");
+                const allTeachers = mockUsers; // Use the mockUsers array defined above
+                const batchTeachers = db.batch();
+                
+                // 1. Get all current users
+                const currentUsersSnap = await db.collection('users').get();
+                
+                // 2. Identify all valid IDs
+                const validIds = new Set(allTeachers.map(u => u.id));
+                
+                // 3. Delete any teacher that is not in the valid IDs
+                currentUsersSnap.forEach(doc => {
+                    const user = doc.data();
+                    if (user.role === 'teacher' && !validIds.has(user.id)) {
+                        batchTeachers.delete(doc.ref);
+                    }
+                });
+                
+                // 4. Update or create the valid teachers
+                allTeachers.forEach(u => {
+                    const docRef = db.collection('users').doc(u.id);
+                    batchTeachers.set(docRef, u, { merge: true });
+                });
+                
+                await batchTeachers.commit();
+                localStorage.setItem('force_teacher_update_v3', 'true');
+                console.log("Teacher bulk update v3 completed.");
+            }
+
+
+
+            // Listen to users
+            db.collection('users').onSnapshot(snapshot => {
+                const users = [];
+                snapshot.forEach(doc => users.push(doc.data()));
+                localStorage.setItem('users', JSON.stringify(users));
+                window.dispatchEvent(new Event('db-updated'));
+            });
+
+            // Listen to workloads
+            db.collection('workloads').onSnapshot(snapshot => {
+                const workloads = [];
+                snapshot.forEach(doc => workloads.push(doc.data()));
+                localStorage.setItem('workloads', JSON.stringify(workloads));
+                
+                // Dispatch event so UI can re-render if needed
+                window.dispatchEvent(new Event('db-updated'));
+            });
+            
+            // Initial fetch to ensure data is loaded before proceeding
+            const usersSnap = await db.collection('users').get();
+            const users = [];
+            usersSnap.forEach(doc => users.push(doc.data()));
+            localStorage.setItem('users', JSON.stringify(users));
+
+            const wlSnap = await db.collection('workloads').get();
+            const workloads = [];
+            wlSnap.forEach(doc => workloads.push(doc.data()));
+            localStorage.setItem('workloads', JSON.stringify(workloads));
+            
+        } catch (error) {
+            console.error("Firebase init error:", error);
+        }
+    },
+
+    async seedUsersIfEmpty() {
+        const snap = await db.collection('users').limit(1).get();
+        if (snap.empty) {
+            console.log("Seeding mock users...");
             const batch = db.batch();
             mockUsers.forEach(u => {
                 const ref = db.collection('users').doc(u.id);
