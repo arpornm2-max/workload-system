@@ -49,7 +49,7 @@ const CertifierView = {
             <div style="margin-bottom: 2rem;">
                 <h2 style="margin-bottom: 1.5rem;">ภาพรวมระบบ</h2>
                 <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
-                    <div style="flex: 2; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+                    <div class="dashboard-stats-grid">
                         <div class="glass-panel" style="padding: 1.5rem; display: flex; align-items: center; gap: 1rem; border-left: 4px solid var(--primary); margin-bottom: 0;">
                             <div style="background: rgba(43, 88, 255, 0.1); padding: 1rem; border-radius: 50%; color: var(--primary);">
                                 <i data-lucide="file-text" style="width: 24px; height: 24px;"></i>

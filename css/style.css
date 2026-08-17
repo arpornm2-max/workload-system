@@ -66,17 +66,32 @@ h2 { font-size: 1.5rem; margin-bottom: 1rem; }
 
 /* Logo Styling */
 .app-logo {
-    width: 10cm;
+    width: 100%;
+    max-width: 300px;
     height: auto;
     object-fit: contain;
     margin-bottom: 1rem;
 }
 
 .header-logo {
-    width: 10cm;
+    width: 100%;
+    max-width: 250px;
     height: auto;
     object-fit: contain;
     margin-bottom: 0;
+}
+
+.layout-sidebar-main {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+}
+
+.dashboard-stats-grid {
+    flex: 2;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
 }
 
 /* App Container */
@@ -144,7 +159,50 @@ textarea.form-control {
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
 
 @media (max-width: 768px) {
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .grid-2, .grid-3, .dashboard-stats-grid { 
+        grid-template-columns: 1fr !important; 
+    }
+    
+    .layout-sidebar-main {
+        display: flex !important;
+        flex-direction: column-reverse !important;
+        gap: 1.5rem;
+    }
+    
+    .app-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 1rem !important;
+    }
+    
+    .app-header > div:first-child {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center;
+        gap: 0.75rem !important;
+    }
+    
+    .header-logo {
+        max-width: 200px;
+    }
+    
+    .app-header > div:last-child {
+        justify-content: center;
+    }
+    
+    .app-container {
+        padding: 1rem;
+    }
+    
+    .glass-panel {
+        padding: 1.25rem 1rem !important;
+    }
+    
+    /* Make data tables scroll horizontally */
+    .data-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
 }
 
 /* Buttons */

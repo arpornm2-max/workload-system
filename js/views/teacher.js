@@ -57,7 +57,7 @@ const TeacherView = {
                 </div>
             </div>
 
-            <div class="grid-2" style="grid-template-columns: 1fr 2fr;">
+            <div class="layout-sidebar-main">
                 <!-- Sidebar: History -->
                 <div>
                     <div class="glass-panel" style="padding: 1.5rem;">
